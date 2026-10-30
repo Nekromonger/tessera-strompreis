@@ -1,0 +1,55 @@
+# Tibber prices for the Strompreis EPEX tile, with "Graph starts at".
+#
+# A Home Assistant package: copy this file to /config/packages/tibber_preise_tessera.yaml and have
+#
+#   homeassistant:
+#     packages: !include_dir_named packages
+#
+# in configuration.yaml, then restart Home Assistant. It needs the Tibber integration (its action tibber.get_prices).
+#
+# It makes sensor.tibber_preise_tessera: the price now as its state and an attribute `data` in the shape of the EPEX
+# Spot sensor (a list of `start_time` and `price_per_kwh`). Tibber only gives today and tomorrow, so the sensor keeps
+# the last 24 hours of its own earlier list as well: that is what the tile needs to show, say, 13:00 to 13:00 before
+# 13:00. Right after you add it, the slots before today's midnight are empty until the sensor has lived through them.
+template:
+  - triggers:
+      - trigger: time_pattern
+        minutes: /15
+        seconds: 5
+      - trigger: homeassistant
+        event: start
+    actions:
+      - action: tibber.get_prices
+        data:
+          start: "{{ today_at().isoformat() }}"
+          end: "{{ (today_at() + timedelta(days=2)).isoformat() }}"
+        response_variable: antwort
+    sensor:
+      - name: Tibber Preise Tessera
+        unique_id: tibber_preise_tessera
+        unit_of_measurement: "€/kWh"
+        state_class: measurement
+        icon: mdi:currency-eur
+        # The slot that started last before now.
+        state: >
+          {% set ns = namespace(p=none) %}
+          {% for x in this.attributes.get('data', []) %}
+            {% if as_datetime(x.start_time) <= now() %}{% set ns.p = x.price_per_kwh %}{% endif %}
+          {% endfor %}
+          {{ ns.p }}
+        attributes:
+          # Tibber's slots from today on, and before them the slots of the earlier list from 24 hours ago on. If
+          # Tibber gives nothing, the earlier list stays as it was.
+          data: >
+            {% set fresh = (antwort.prices.values() | list | first) if antwort.prices else [] %}
+            {% set first = as_datetime(fresh[0].start_time) if fresh else today_at() + timedelta(days=3) %}
+            {% set keep_from = now() - timedelta(hours=24, minutes=15) %}
+            {% set ns = namespace(items=[]) %}
+            {% for x in this.attributes.get('data', []) %}
+              {% set t = as_datetime(x.start_time) %}
+              {% if keep_from <= t < first %}{% set ns.items = ns.items + [x] %}{% endif %}
+            {% endfor %}
+            {% for x in fresh %}
+              {% set ns.items = ns.items + [{'start_time': x.start_time, 'price_per_kwh': x.price}] %}
+            {% endfor %}
+            {{ ns.items }}

@@ -26,9 +26,32 @@ item work as there.
 - Tomorrow's bars appear on their own once the sensor has them (in the afternoon).
 - The total price sensor already holds surcharges and VAT, so the delivery formula can stay empty.
 
-## 24 Stunden ab einer Uhrzeit (0.2.0)
+## 24 hours from an hour of your choice (0.2.0)
 
-The option **Graph starts at** (Diagramm ab Uhrzeit) shows exactly 24 hours from that hour, such as 13:00 to 13:00 the
-next day, without a second day. Before 13:00 that is yesterday 13:00 to today 13:00, so the sensor's list must hold
-yesterday's afternoon (the Tibber package `tibber_preise_tessera.yaml` keeps it). Slots the list does not hold yet stay
-empty. 0 keeps today and tomorrow from midnight.
+The option **Graph starts at** shows exactly 24 hours from that hour, such as 13:00 to 13:00 the next day, without a
+second day. 0 keeps today and tomorrow from midnight. Slots the list does not hold yet stay empty.
+
+Before 13:00 that is yesterday 13:00 to today 13:00, so the sensor's list must still hold yesterday's afternoon. The EPEX
+Spot sensor does. Tibber gives only today and tomorrow; for it, this repository has a Home Assistant package that keeps
+the last 24 hours:
+
+1. Copy [`tibber_preise_tessera.yaml`](tibber_preise_tessera.yaml) to `/config/packages/` in Home Assistant (with the
+   File editor or Studio Code Server add-on, or over Samba).
+2. If your `configuration.yaml` has no packages yet, add
+   ```yaml
+   homeassistant:
+     packages: !include_dir_named packages
+   ```
+3. Restart Home Assistant. It needs the **Tibber** integration; the package calls its action `tibber.get_prices`
+   every 15 minutes.
+4. Choose `sensor.tibber_preise_tessera` in the tile's inspector. Its price already holds surcharges and VAT, so leave
+   the delivery formula empty.
+
+Right after you add it, the slots before today's midnight stay empty until the sensor has lived through them, so the
+graph is complete from the next day on. Home Assistant may log that the sensor's attributes are too big for the
+recorder; that only means the history of the list is not saved, the tile is not affected.
+
+## Tried on
+
+- Sunton ESP32-8048S070 (7-inch, 800 x 480), with EPEX Spot and with the Tibber package.
+- The plugin bench (`tools/preview.py`) on every screen it renders, light and dark.
