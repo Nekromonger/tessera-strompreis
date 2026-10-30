@@ -1,0 +1,25 @@
+# What tools/preview.py shows: an EPEX Spot sensor with yesterday, today and tomorrow (hourly), in ct/kWh as bars and
+# in EUR/kWh as a stepped line. Only the first two slots need their start: the tile cuts today and tomorrow by it.
+tiles:
+  - tile: epex
+    name: Strompreis
+    entity: sensor.epex_spot_data_total_price
+    options: { unit: cents, fixed: 1 }
+    sizes: [1x1, 2x1, 2x2, 4x2, 4x3]
+  - tile: epex
+    name: EPEX line
+    entity: sensor.epex_spot_data_total_price
+    options: { unit: eur, fixed: 3, graph: line, grid: dotted }
+    sizes: [2x2, 4x2]
+
+states:
+  sensor.epex_spot_data_total_price:
+    state: "0.2246"
+    attributes:
+      friendly_name: EPEX Spot Total Price
+      unit_of_measurement: €/kWh
+      data: [{ start_time: "{now-30h}", price_per_kwh: 0.12064 }, { start_time: "{now-29h}", price_per_kwh: 0.11468 }, { start_time: "x", price_per_kwh: 0.09817 }, { start_time: "x", price_per_kwh: 0.09906 }, { start_time: "x", price_per_kwh: 0.09802 }, { start_time: "x", price_per_kwh: 0.11757 }, { start_time: "x", price_per_kwh: 0.159 }, { start_time: "x", price_per_kwh: 0.18634 }, { start_time: "x", price_per_kwh: 0.17724 }, { start_time: "x", price_per_kwh: 0.13475 }, { start_time: "x", price_per_kwh: 0.08564 }, { start_time: "x", price_per_kwh: 0.06249 }, { start_time: "x", price_per_kwh: 0.0435 }, { start_time: "x", price_per_kwh: 0.06579 }, { start_time: "x", price_per_kwh: 0.09082 }, { start_time: "x", price_per_kwh: 0.15757 }, { start_time: "x", price_per_kwh: 0.225 }, { start_time: "x", price_per_kwh: 0.24764 }, { start_time: "x", price_per_kwh: 0.26219 }, { start_time: "x", price_per_kwh: 0.26203 }, { start_time: "x", price_per_kwh: 0.2456 }, { start_time: "x", price_per_kwh: 0.23288 }, { start_time: "x", price_per_kwh: 0.22501 }, { start_time: "x", price_per_kwh: 0.21116 }, { start_time: "x", price_per_kwh: 0.21543 }, { start_time: "x", price_per_kwh: 0.20951 }, { start_time: "x", price_per_kwh: 0.21206 }, { start_time: "x", price_per_kwh: 0.20786 }, { start_time: "x", price_per_kwh: 0.20699 }, { start_time: "x", price_per_kwh: 0.20851 }, { start_time: "x", price_per_kwh: 0.26404 }, { start_time: "x", price_per_kwh: 0.2964 }, { start_time: "x", price_per_kwh: 0.29413 }, { start_time: "x", price_per_kwh: 0.26443 }, { start_time: "x", price_per_kwh: 0.2246 }, { start_time: "x", price_per_kwh: 0.20759 }, { start_time: "x", price_per_kwh: 0.19586 }, { start_time: "x", price_per_kwh: 0.18991 }, { start_time: "x", price_per_kwh: 0.19074 }, { start_time: "x", price_per_kwh: 0.22617 }, { start_time: "x", price_per_kwh: 0.28949 }, { start_time: "x", price_per_kwh: 0.32507 }, { start_time: "x", price_per_kwh: 0.34309 }, { start_time: "x", price_per_kwh: 0.33348 }, { start_time: "x", price_per_kwh: 0.304 }, { start_time: "x", price_per_kwh: 0.27917 }, { start_time: "x", price_per_kwh: 0.25828 }, { start_time: "x", price_per_kwh: 0.2342 }, { start_time: "x", price_per_kwh: 0.20389 }, { start_time: "x", price_per_kwh: 0.19856 }, { start_time: "x", price_per_kwh: 0.20085 }, { start_time: "x", price_per_kwh: 0.19707 }, { start_time: "x", price_per_kwh: 0.19629 }, { start_time: "x", price_per_kwh: 0.19766 }, { start_time: "x", price_per_kwh: 0.24764 }, { start_time: "x", price_per_kwh: 0.27676 }, { start_time: "x", price_per_kwh: 0.27472 }, { start_time: "x", price_per_kwh: 0.24799 }, { start_time: "x", price_per_kwh: 0.21214 }, { start_time: "x", price_per_kwh: 0.19683 }, { start_time: "x", price_per_kwh: 0.18627 }, { start_time: "x", price_per_kwh: 0.18092 }, { start_time: "x", price_per_kwh: 0.18167 }, { start_time: "x", price_per_kwh: 0.21355 }, { start_time: "x", price_per_kwh: 0.27054 }, { start_time: "x", price_per_kwh: 0.30256 }, { start_time: "x", price_per_kwh: 0.31878 }, { start_time: "x", price_per_kwh: 0.31013 }, { start_time: "x", price_per_kwh: 0.2836 }, { start_time: "x", price_per_kwh: 0.26125 }, { start_time: "x", price_per_kwh: 0.24245 }, { start_time: "x", price_per_kwh: 0.22078 }]
+
+cards:
+  - card: prices
+    entity: sensor.epex_spot_data_total_price

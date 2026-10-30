@@ -1,0 +1,71 @@
+# Strompreis EPEX: the electricity price now as a tile, and the graph of today and tomorrow on bigger tiles and on a
+# card, from the sensor of the EPEX Spot integration (HACS `epex_spot`, attribute `data` with `start_time` and
+# `price_per_kwh`). Built on the Electricity price plugin by Heronimonimo (MIT), with a tile for EPEX Spot.
+id: strompreis_epex
+version: 0.2.0
+api: "0.12"
+icon: flash
+maintainer: Nekromonger
+license: MIT
+stage: beta
+topics: [energy]
+requires:
+  esphome: 2026.6.2
+boards: any
+flash_kb: 16
+
+# The price now of a tile on the screen, with that tile's sensor, formula and unit.
+bar_items:
+  - { id: price, label: bar_price, icon: flash, example: bar_example }
+
+tiles:
+  # The EPEX Spot sensor: one list `data` of yesterday, today and (from the afternoon) tomorrow, each slot with its
+  # start. The screen cuts today and tomorrow out of it by the start of the first slot.
+  - id: epex
+    name: tile_name_epex
+    icon: flash
+    sizes: { min: 1x1, max: 9x9, full: true }
+    memory: 16000
+    domains: [sensor]
+    attributes: [unit_of_measurement]
+    has_attributes: [data]
+    fields:
+      prices: { path: "data[*].price_per_kwh", as: numbers }
+      first: { path: "data[0].start_time", as: epoch }
+      second: { path: "data[1].start_time", as: epoch }
+    example: tile_example
+    preview: { title: "{name}", value: "{state} {unit_of_measurement}" }
+    options:
+      - id: unit
+        kind: choice
+        default: cents
+        label: unit
+        hint: unit_hint
+        choices:
+          - { value: eur, label: unit_eur }
+          - { value: cents, label: unit_cents }
+      - { id: fixed, kind: number, min: 0, max: 4, step: 1, default: 1, label: decimals, hint: decimals_hint }
+      - { id: start, kind: number, min: 0, max: 23, step: 1, default: 0, label: start, hint: start_hint }
+      - { id: delivery, kind: text, default: "", label: delivery, hint: delivery_hint }
+      - { id: feed_in, kind: text, default: "", label: feed_in, hint: feed_in_hint }
+      - id: graph
+        kind: choice
+        default: bars
+        label: graph
+        hint: graph_hint
+        choices:
+          - { value: bars, label: graph_bars }
+          - { value: line, label: graph_line }
+      - { id: fill, kind: toggle, default: true, label: fill, hint: fill_hint }
+      - id: grid
+        kind: choice
+        default: none
+        label: grid
+        hint: grid_hint
+        choices:
+          - { value: none, label: grid_none }
+          - { value: solid, label: grid_solid }
+          - { value: dotted, label: grid_dotted }
+
+cards:
+  - { id: prices, name: card_name, wide: true }
