@@ -16,8 +16,8 @@ item work as there.
 3. In Layout, place the **Electricity price (EPEX Spot)** tile from the library's Plugins group. A tile smaller than
    2x2 shows the price with the meter bar; from 2x2 up it adds the graph.
 4. In the inspector, choose `sensor.epex_spot_data_total_price` (the list holds only sensors with a `data` attribute).
-5. Choose the unit (ct/kWh by default) and the decimals. Tap a bar to see its price and time slot; tap beside the bars
-   to open the card with the lowest and highest price still to come.
+5. Choose the unit (ct/kWh by default) and the decimals. A tap on the tile opens the card with every quarter of an hour
+   and the lowest and highest price still to come; tap a bar there to see its price and time slot.
 
 ## Good to know
 
