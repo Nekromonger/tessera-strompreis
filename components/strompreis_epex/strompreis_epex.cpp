@@ -879,8 +879,18 @@ class PriceTile : public tessera::Tile {
     on_tick(last_epoch_);
   }
 
-  // A tap anywhere on the tile opens the card; a bar's own price is chosen there, where the bars are wide enough.
+  // A tap on the graph chooses the bar under the finger (again on it: none); a tap on the row over the graph, or on
+  // a tile without one, opens the card.
   void on_tap() override {
+    const tessera::Point p = tessera::tap_point();
+    if (chart_on_ && prices_.today > 0 && p.y >= head_) {
+      const int hit = chart_.bar_at(p.x, p.y);
+      sel_ = hit >= 0 && hit != sel_ ? hit : -1;
+      sel_until_ = last_epoch_ + 8;
+      chart_.select(sel_);
+      on_tick(last_epoch_);
+      return;
+    }
     shared_->cents = cents_;
     shared_->decimals = decimals_;
     shared_->tariff = tariff_;
