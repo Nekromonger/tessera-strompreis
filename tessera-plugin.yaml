@@ -2,7 +2,7 @@
 # card, from the sensor of the EPEX Spot integration (HACS `epex_spot`, attribute `data` with `start_time` and
 # `price_per_kwh`). Built on the Electricity price plugin by Heronimonimo (MIT), with a tile for EPEX Spot.
 id: strompreis_epex
-version: 0.2.0
+version: 0.3.0
 api: "0.12"
 icon: flash
 maintainer: Nekromonger
@@ -25,7 +25,7 @@ tiles:
     name: tile_name_epex
     icon: flash
     sizes: { min: 1x1, max: 9x9, full: true }
-    memory: 16000
+    memory: 13000
     domains: [sensor]
     attributes: [unit_of_measurement]
     has_attributes: [data]

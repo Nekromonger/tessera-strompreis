@@ -16,7 +16,11 @@ namespace ui = tessera::ui;
 constexpr int MAX_DAY = 100;    // a day's slots, at most: 100 quarters on the day the clock goes back
 constexpr int MAX_SLOTS = 2 * MAX_DAY;  // today and tomorrow
 constexpr int MAX_CELLS = 60;  // as many as the meter's bar has
-constexpr int TILE_BARS = 100;  // a tile draws at most this many bars (memory); the card draws them all
+// A tile draws hours, at most 50 (today and tomorrow, 25 hours on the day the clock goes back), to keep its memory
+// small; the card draws every slot.
+constexpr int TILE_BARS = 50;
+constexpr int TILE_TIMES = 8;  // times under a tile's graph, at most: every six hours over two days
+constexpr int TILE_RUNS = 12;  // lines of one colour a tile's stepped line takes, at most
 
 // ---- The prices: what the sensor says, one price per slot (a quarter of an hour when the sensor has them, else an hour) ----
 struct Prices {
@@ -307,13 +311,19 @@ class Chart {
   // The graph takes the rectangle x, y, w, h: its plot, the price labels left of it and the times under it.
   // `bars` is how many bars it may draw, `times` how many times it may write under the bars.
   // `line` draws a stepped line in place of the bars, with the bars as a faint fill under it when `fill`.
+  // `hourly` joins quarters to hours (a tile's graph), which also takes fewer runs of the stepped line.
   void create(lv_obj_t *parent, int x, int y, int w, int h, int bars, int times, bool cents, bool line = false,
-              bool fill = true, Grid grid = Grid::NONE) {
+              bool fill = true, Grid grid = Grid::NONE, bool hourly = false) {
     cents_ = cents;
+    hourly_ = hourly;
+    runs_n_ = hourly ? TILE_RUNS : MAX_RUNS;
     grid_style_ = grid;
     line_ = line;
     fill_ = fill;
     bars_n_ = std::min(bars, MAX_SLOTS);
+    bars_.resize(bars_n_);
+    value_.resize(bars_n_);
+    base_.resize(bars_n_);
     times_n_ = std::min(times, MAX_TIMES);
     const bool big = ui::large();
     label_h_ = ui::line_height(Font::BODY);
@@ -341,7 +351,8 @@ class Chart {
       lv_obj_add_flag(price_[i], LV_OBJ_FLAG_HIDDEN);
     }
     divider_ = hairline(parent, theme::TICK);
-    for (int i = 0; i < bars_n_; i++) {
+    // A line without its fill has no bars at all.
+    for (int i = 0; i < bars_n_ && !(line_ && !fill_); i++) {
       bars_[i] = ui::block(parent, theme::TRACK);
       lv_obj_set_style_radius(bars_[i], line_ ? 0 : ui::px(1), 0);
       lv_obj_add_flag(bars_[i], LV_OBJ_FLAG_HIDDEN);
@@ -351,8 +362,8 @@ class Chart {
       // of now and of a tapped slot. The points stay in PSRAM for as long as the lines show them.
       const int thick = std::max(2, ui::px(big ? 3 : 2));
       feed_line_ = step_line(parent, std::max(1, thick / 2));
-      for (int i = 0; i < MAX_RUNS; i++) runs_[i] = step_line(parent, thick);
-      points_.resize(2 * bars_n_ + MAX_RUNS);
+      for (int i = 0; i < runs_n_; i++) runs_[i] = step_line(parent, thick);
+      points_.resize(2 * bars_n_ + runs_n_);
       feed_points_.resize(2 * bars_n_ + 1);
       mark_ = hairline(parent, theme::INK);
       const int d = std::max(5, ui::px(big ? 9 : 7));
@@ -393,7 +404,8 @@ class Chart {
   void update(const Prices &p, const Day &d, uint32_t epoch) {
     const int n = p.count();
     const int now = d.slot(epoch);
-    const int group = n > bars_n_ ? (n + bars_n_ - 1) / bars_n_ : 1;
+    int group = n > bars_n_ ? (n + bars_n_ - 1) / bars_n_ : 1;
+    if (hourly_ && p.today > 25) group = std::max(group, 4);  // quarters, four to an hour
     const int bars = n ? (n + group - 1) / group : 0;
     float v[MAX_SLOTS];
     float lo = 0, hi = 0, mn = INFINITY, mx = -INFINITY;
@@ -429,7 +441,8 @@ class Chart {
     for (int b = 0; b < bars; b++) value_[b] = v[b];
     if (sel_ >= bars) sel_ = -1;
     if (!bars) {
-      for (int i = 0; i < bars_n_; i++) lv_obj_add_flag(bars_[i], LV_OBJ_FLAG_HIDDEN);
+      for (int i = 0; i < bars_n_; i++)
+        if (bars_[i]) lv_obj_add_flag(bars_[i], LV_OBJ_FLAG_HIDDEN);
       for (int i = 0; i < MAX_TICKS; i++) {
         lv_obj_add_flag(grid_[i], LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(price_[i], LV_OBJ_FLAG_HIDDEN);
@@ -503,6 +516,7 @@ class Chart {
     const int now_bar = now < 0 ? -1 : now / group;
     for (int i = 0; i < bars_n_; i++) {
       lv_obj_t *bar = bars_[i];
+      if (!bar) continue;
       if (i >= bars || std::isnan(v[i]) || (line_ && !fill_)) {
         lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
         continue;
@@ -599,7 +613,7 @@ class Chart {
   // The stepped line's runs from `first` on and its marks out of sight; 0 hides all of it.
   void hide_line(int first) {
     if (!line_) return;
-    for (int i = first; i < MAX_RUNS; i++) lv_obj_add_flag(runs_[i], LV_OBJ_FLAG_HIDDEN);
+    for (int i = first; i < runs_n_; i++) lv_obj_add_flag(runs_[i], LV_OBJ_FLAG_HIDDEN);
     if (first == 0) {
       lv_obj_add_flag(feed_line_, LV_OBJ_FLAG_HIDDEN);
       for (lv_obj_t *part : {mark_, now_dot_, sel_dot_, feed_dot_}) lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
@@ -633,7 +647,7 @@ class Chart {
       }
     };
     int run = 0, k = 0, i = 0;
-    while (i < bars && run < MAX_RUNS) {
+    while (i < bars && run < runs_n_) {
       if (std::isnan(v[i])) {
         i++;
         continue;
@@ -641,7 +655,7 @@ class Chart {
       const int first = k, c = colour(i);
       points_[k++] = point(ax_ + edge_x(i), y_of(v[i]));
       int j = i;
-      for (; j < bars && !std::isnan(v[j]) && (colour(j) == c || run == MAX_RUNS - 1); j++) {
+      for (; j < bars && !std::isnan(v[j]) && (colour(j) == c || run == runs_n_ - 1); j++) {
         points_[k++] = point(ax_ + edge_x(j + 1), y_of(v[j]));
         if (j + 1 < bars && !std::isnan(v[j + 1])) points_[k++] = point(ax_ + edge_x(j + 1), y_of(v[j + 1]));
       }
@@ -692,19 +706,20 @@ class Chart {
     return line;
   }
 
-  lv_obj_t *bars_[MAX_SLOTS]{}, *grid_[MAX_TICKS]{}, *price_[MAX_TICKS]{}, *marks_[MAX_TIMES]{}, *time_[MAX_TIMES]{};
+  tessera::List<lv_obj_t *> bars_;
+  lv_obj_t *grid_[MAX_TICKS]{}, *price_[MAX_TICKS]{}, *marks_[MAX_TIMES]{}, *time_[MAX_TIMES]{};
   lv_obj_t *divider_{};
   // The stepped line: its runs, the feed-in line, the mark through a tapped slot and the dots, and their points.
   lv_obj_t *runs_[MAX_RUNS]{}, *feed_line_{}, *mark_{}, *now_dot_{}, *sel_dot_{}, *feed_dot_{};
   tessera::List<lv_point_precise_t> points_, feed_points_;
-  bool line_ = false, fill_ = true;
+  bool line_ = false, fill_ = true, hourly_ = false;
   Grid grid_style_ = Grid::NONE;
   lv_point_precise_t grid_points_[MAX_TICKS][2]{};
   bool cents_ = false;
   int x_ = 0, ax_ = 0, ay_ = 0, aw_ = 1, ah_ = 1, label_w_ = 0, label_h_ = 0, time_y_ = 0, mark_y_ = 0, mark_h_ = 0;
-  int bars_n_ = 0, times_n_ = 0, mid_x_ = 0;
+  int bars_n_ = 0, times_n_ = 0, runs_n_ = MAX_RUNS, mid_x_ = 0;
   int group_ = 1, bars_now_ = 0, sel_ = -1;
-  float value_[MAX_SLOTS]{}, base_[MAX_SLOTS]{};  // each bar's delivery price, and the price it stands on
+  tessera::List<float> value_, base_;  // each bar's delivery price, and the price it stands on
 };
 
 // What a card takes over from the tile that opened it: the tile's options and its last prices.
@@ -757,7 +772,8 @@ class PriceTile : public tessera::Tile {
     feed_ = ui::label(c.parent, Font::BODY, theme::MUTED);
     lv_obj_set_style_text_align(feed_, LV_TEXT_ALIGN_RIGHT, 0);
     if (chart_on_) {
-      chart_.create(c.parent, 0, head_ + gap, width_, height_ - head_ - gap, TILE_BARS, 12, cents_, line_, fill_, grid_);
+      chart_.create(c.parent, 0, head_ + gap, width_, height_ - head_ - gap, TILE_BARS, TILE_TIMES, cents_, line_, fill_, grid_,
+                    true);
       return;
     }
     // The meter's bar of cells (Tessera's sensor meter): narrow cells along the bottom of the tile, lit up to where
@@ -863,19 +879,8 @@ class PriceTile : public tessera::Tile {
     on_tick(last_epoch_);
   }
 
+  // A tap anywhere on the tile opens the card; a slot's own price is chosen there.
   void on_tap() override {
-    if (chart_on_ && prices_.today > 0) {
-      const tessera::Point p = tessera::tap_point();
-      const int hit = p.x >= 0 ? chart_.bar_at(p.x, p.y) : -1;
-      // A tap on a bar shows it; a tap on the one shown, or beside the bars, opens the card.
-      if (hit >= 0 && hit != sel_) {
-        sel_ = hit;
-        sel_until_ = last_epoch_ + 8;
-        chart_.select(hit);
-        on_tick(last_epoch_);
-        return;
-      }
-    }
     shared_->cents = cents_;
     shared_->decimals = decimals_;
     shared_->tariff = tariff_;
