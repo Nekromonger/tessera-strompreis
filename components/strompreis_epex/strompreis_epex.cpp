@@ -390,6 +390,12 @@ class Chart {
     const int i = static_cast<int>(static_cast<long long>(x - ax_) * bars_now_ / aw_);
     return i >= 0 && i < bars_now_ && !std::isnan(value_[i]) ? i : -1;
   }
+  // The bar nearest to x anywhere on the graph (beside the plot: its first or last), or -1 without bars.
+  int bar_near(int x) const {
+    if (bars_now_ <= 0) return -1;
+    const int i = std::clamp(static_cast<int>(static_cast<long long>(x - ax_) * bars_now_ / aw_), 0, bars_now_ - 1);
+    return std::isnan(value_[i]) ? -1 : i;
+  }
   float bar_value(int i) const { return value_[i]; }
   // The feed-in price bar i stands on; 0 without one.
   float bar_feed(int i) const { return base_[i]; }
@@ -879,12 +885,12 @@ class PriceTile : public tessera::Tile {
     on_tick(last_epoch_);
   }
 
-  // A tap on the graph chooses the bar under the finger (again on it: none); a tap on the row over the graph, or on
-  // a tile without one, opens the card.
+  // A tap anywhere on the graph chooses the bar nearest the finger (again on it: none); a tap on the row over the
+  // graph, or on a tile without one, opens the card.
   void on_tap() override {
     const tessera::Point p = tessera::tap_point();
     if (chart_on_ && prices_.today > 0 && p.y >= head_) {
-      const int hit = chart_.bar_at(p.x, p.y);
+      const int hit = chart_.bar_near(p.x);
       sel_ = hit >= 0 && hit != sel_ ? hit : -1;
       sel_until_ = last_epoch_ + 8;
       chart_.select(sel_);
